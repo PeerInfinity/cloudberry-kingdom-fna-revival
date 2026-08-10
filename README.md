@@ -141,6 +141,8 @@ NOTICE.md              Attribution + what you may/may not redistribute
 - **[PortMaster](https://portmaster.games/)** and the **Dust: An Elysian Tail** porter (JanTrueno) —
   the FNA-on-Mono handheld runtime pattern this project follows.
 - **MojoShader**, **FAudio**, **Theorafile**, **SDL** — the native backends that make it all run.
+- **Claude (Anthropic)** — AI pair-programmer for the whole revival: the XNA→FNA migration, the
+  content/shader/audio/video pipeline, the on-device debugging, and the R36S / Mono / PortMaster port.
 
 ## License
 
