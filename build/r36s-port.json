@@ -1,0 +1,35 @@
+{
+    "version": 4,
+    "name": "cloudberry.zip",
+    "items": [
+        "Cloudberry Kingdom.sh",
+        "cloudberry"
+    ],
+    "items_opt": null,
+    "attr": {
+        "title": "Cloudberry Kingdom",
+        "porter": [
+            "FNA revival"
+        ],
+        "desc": "The lightning-fast procedurally-generated platformer by Pwnee Studios, revived for handhelds via FNA.",
+        "desc_md": null,
+        "genres": [
+            "platformer",
+            "action"
+        ],
+        "rtr": true,
+        "exp": false,
+        "runtime": [],
+        "availability": "free",
+        "reqs": [],
+        "arch": [
+            "aarch64"
+        ],
+        "min_glibc": ""
+    },
+    "status": {
+        "source": "Local",
+        "md5": null,
+        "status": "Installed"
+    }
+}

@@ -1,0 +1,10 @@
+# Keep everything LF in the repo — shell scripts and patches MUST stay LF,
+# and the PowerShell/docs are LF-clean too. This avoids CRLF breakage on Linux/R36S.
+* text=auto eol=lf
+*.sh    text eol=lf
+*.patch text eol=lf
+*.ps1   text eol=lf
+*.json  text eol=lf
+*.iss   text eol=lf
+*.csproj text eol=lf
+*.md    text eol=lf

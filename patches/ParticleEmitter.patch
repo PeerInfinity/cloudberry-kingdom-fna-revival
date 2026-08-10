@@ -1,0 +1,13 @@
+--- a/Game/Engine/ParticleEffects/ParticleEmitter.cs
++++ b/Game/Engine/ParticleEffects/ParticleEmitter.cs
+@@ -59,6 +59,10 @@
+ 
+         void Init(int capacity)
+         {
++#if HANDHELD
++            // Fewer live particles on weak handhelds -> less per-frame update/draw.
++            capacity = (int)(capacity * 0.5f);
++#endif
+             TotalCapacity = capacity;
+ 
+             Count = Index = 0;

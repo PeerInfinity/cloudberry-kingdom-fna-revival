@@ -1,0 +1,23 @@
+# --- Never commit the game (bring your own source) ---
+/Game/
+/Cloudberry-Kingdom/
+ContentPC/
+BuiltContent*/
+
+# --- Build outputs ---
+dist/
+bin/
+obj/
+*.user
+
+# --- Vendored binaries you fetch yourself (not ours to redistribute) ---
+build/fnalibs/
+build/r36s-base/
+build/_r36s_tex/
+build/_mgcb_obj/
+build/_r36s_mgcb_obj/
+
+# --- OS / editor cruft ---
+.DS_Store
+Thumbs.db
+.vs/
