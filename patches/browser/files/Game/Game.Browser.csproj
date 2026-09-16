@@ -53,6 +53,8 @@
 
   <ItemGroup>
     <Compile Include="Effects\FireballDraw.cs" />
+    <Compile Include="MainClass\BrowserMainLoop.cs" />
+    <Compile Include="MainClass\BrowserPlayState.cs" />
     <Compile Include="MainClass\GeneratorApi.cs" />
     <Compile Include="Engine\Chunk.cs" />
     <Compile Include="Engine\Effects\EzEffectWad.cs" />

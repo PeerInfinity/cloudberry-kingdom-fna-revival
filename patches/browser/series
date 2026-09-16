@@ -1,5 +1,8 @@
 file	files/Game/Game.Browser.csproj	Game/Game.Browser.csproj
+file	files/Game/MainClass/BrowserMainLoop.cs	Game/MainClass/BrowserMainLoop.cs
+file	files/Game/MainClass/BrowserPlayState.cs	Game/MainClass/BrowserPlayState.cs
 file	files/Game/MainClass/GeneratorApi.cs	Game/MainClass/GeneratorApi.cs
+patch	Game-Config-Localization.cs.patch	Game/Config/Localization.cs
 patch	Game-Engine-GameTools-Resources.cs.patch	Game/Engine/GameTools/Resources.cs
 patch	Game-Engine-GameTools-Tools.cs.patch	Game/Engine/GameTools/Tools.cs
 patch	Game-Engine-Song-EzSong.cs.patch	Game/Engine/Song/EzSong.cs
@@ -15,5 +18,6 @@ patch	Game-MainClass-DebugHelper_MakeTestLevel.cs.patch	Game/MainClass/DebugHelp
 patch	Game-MainClass-InitialLoading.cs.patch	Game/MainClass/InitialLoading.cs
 patch	Game-MainClass-MainClass.cs.patch	Game/MainClass/MainClass.cs
 patch	Game-MainClass-XnaGameClass.cs.patch	Game/MainClass/XnaGameClass.cs
+patch	Game-Menus-TitleScreen-Sub Menus-SoundMenu.cs.patch	Game/Menus/TitleScreen/Sub Menus/SoundMenu.cs
 patch	Game-Objects-Bob-Bob.cs.patch	Game/Objects/Bob/Bob.cs
 patch	Game-Objects-Door-Door.cs.patch	Game/Objects/Door/Door.cs

@@ -12,6 +12,7 @@ and why each fix has the shape it has. It also specifies the generator API. The 
 - [6. The generator API](#6-the-generator-api)
 - [7. Patch reference](#7-patch-reference)
 - [8. Known gaps](#8-known-gaps)
+- [9. Keyboard control](#9-keyboard-control)
 
 ---
 
@@ -99,7 +100,8 @@ can hang. In dotnet/runtime v9.0.20 `interp.c`, the only part of `interp_mark_st
 default in .NET 9) is `interp_mark_no_ref_slots`: a walk of the thread's LMF chain. With that option off the freeze is
 gone, so the non-terminating loop is in that walk. *Why* the chain does not terminate was not measured. The likely
 candidate is that FNA's `emscripten_set_main_loop(…, simulate_infinite_loop=1)` unwinds out of `Main` without popping the LMF
-entries. Mono reads `MONO_INTERPRETER_OPTIONS` at interpreter init, and the page sets `-precise` through `withEnvironmentVariable`.
+entries (measured later, §9: with the page-driven main loop, which returns from `Main` normally, the precise scan no longer
+freezes). Mono reads `MONO_INTERPRETER_OPTIONS` at interpreter init, and the page sets `-precise` through `withEnvironmentVariable`.
 A/B before making it the default: with it, 14 levels in 117 s; without it, a freeze at 19 s and 29 s. It does not freeze natively
 (21 levels in 90 s with `BROWSER` defined), so the queue itself is correct.
 
@@ -186,16 +188,69 @@ similar to native. Documents are 19–95 KB with the trace.
 | `Game-MainClass-DebugHelper_MakeTestLevel.cs.patch` | `MakeEmptyLevel` becomes `internal` and not DEBUG-only (the API idles on it) |
 | `Game-Level-Level.cs.patch`, `Game-Objects-Bob-Bob.cs.patch`, `Game-Objects-Door-Door.cs.patch` | the replay probe (§6) |
 | `Game-Game.Core.csproj.patch` | compiles `GeneratorApi.cs` natively too |
-| `files/Game/Game.Browser.csproj`, `files/Game/MainClass/GeneratorApi.cs` | new files, entirely this fork's |
+| `Game-Config-Localization.cs.patch` | engine-only mode loads `Content/Fonts/<font>.png` as the font texture when the file exists (the page draws one), else `White` as before |
+| `Game-Menus-TitleScreen-Sub Menus-SoundMenu.cs.patch` | no resolution list or fullscreen toggle under `BROWSER` (§9) |
+| `Game-MainClass-MainClass.cs.patch` (also) | under `BROWSER`, `CK_MAIN_LOOP=js` hands the game to `BrowserMainLoop` and returns |
+| `files/Game/Game.Browser.csproj`, `files/Game/MainClass/GeneratorApi.cs`, `files/Game/MainClass/BrowserMainLoop.cs`, `files/Game/MainClass/BrowserPlayState.cs` | new files, entirely this fork's |
 
 ## 8. Known gaps
 
-- *Why* Mono's LMF chain walk does not terminate is inferred, not measured. If the stale-LMF reading is right, the durable fix is an
-  FNA-side `simulate_infinite_loop = 0` with a runtime that outlives `Main`.
+- The page-driven main loop (§9) removed the precise-GC freeze in a 75 s run; `-precise` is still the default until a longer
+  run with it off has been measured.
+- A frame that throws out of the game is skipped by the page loop (logged, the loop goes on); no real uncaught throw has been
+  observed under it yet, so what state such a frame leaves behind is not measured.
 - No threads: `WasmEnableThreads` would need OffscreenCanvas, COOP/COEP headers and the threaded archives.
-- No input yet (keyboard control is the next planned change), no saves (`MyDocuments` is empty on wasm; persistence would need IDBFS/OPFS).
+- Saves live in memory only: the page creates `/Cloudberry Kingdom` (`MyDocuments` is empty on wasm) so saving does not throw,
+  and a reload forgets everything; persistence would need IDBFS/OPFS mounted there.
+- No gamepad or touch was tried. Mouse menu picking (`#if WINDOWS` in the game) was not tested.
 - The replay check does not hold for every hero: Bouncy diverges from input alone; Time/TimeShip count deaths with zero deviation
   (their obstacle clock follows the hero); some vertical geometries (Box/Invert/UpsideDown/FourWay on `Up`/`Down`) come out degenerate
   (`pieceLength` 6000). The API does not refuse them yet.
 - `replayCheck.*.doorDistanceAtRecordingEnd` is wrong (measured from the origin) when the goal fires inside the recording.
 - Obstacle shapes are the tick-0 state; motion is described by `extra` parameters, not a per-tick timeline.
+
+## 9. Keyboard control
+
+**What was already there.** Keys reached the game on the first try. SDL 3.4.4 attaches its keyboard listeners to
+`SDL_HINT_EMSCRIPTEN_KEYBOARD_ELEMENT`, whose default is `#window` (`SDL_emscriptenvideo.c`), so no canvas focus is needed.
+The game reads the keyboard once per step (`ButtonCheck.cs`: `Tools.Keyboard = Keyboard.GetState()`). On an unmodified page,
+Enter in the attract mode reached the title menu. What stood between that and playing was text and one crash.
+
+**The bindings (the game's own, measured through `window.cloudberry.state()` on a desktop GPU in Chrome):**
+
+| Where | Key | Effect (measured) |
+|---|---|---|
+| attract mode | any key (Enter) | title screen, then the main menu `The Arcade / Story Mode / Options / Exit Game` |
+| menus | ↑ ↓ (or W S) | selection moves (pause menu index 0 → 2 after ↓ then S) |
+| menus | Enter or Space | confirm; Enter walks The Arcade → join → Free Play (preselected) → custom level → upgrades → Start into a level |
+| menus | Esc or Backspace | back |
+| level | → / D, ← / A held 1 s | x 50 → 281, 281 → −204 (and back) |
+| level | ↑ / W held | y −356 → peak 61 / 62 (jump; `Bob.GetPlayerInput` maps Up and `Up_Secondary` to the A button) |
+| level | Esc | pause menu `Resume / Statistics / Save/Load / Options / Exit Level`; Esc closes it |
+| level | Enter | the power-up (`HelpMenu`) screen; Esc closes it |
+| level | Space | quickspawn: back to the start door (x 281 → 50) |
+| level | run right into lava | death at x ≈ 3284, respawn at the door |
+
+Enter and Space are not jump in a level: Enter is `Help_KeyboardKey` and Space is `Quickspawn_KeyboardKey` (`ButtonCheck.Reset`).
+A key down and up inside one game step can be missed (a zero-length synthetic tap was); a human tap is longer than a frame.
+
+**Walls, in order:**
+
+| # | First failure (verbatim) | Cause | Fix |
+|---|---|---|---|
+| 1 | every menu label and HUD string drawn as a solid bar | engine-only mode binds the font texture to `White` (`Localization.LoadFont`); the game samples glyphs from one texture at the rectangles in `Content/Fonts/Grobold_*.fnt` | the page draws a placeholder atlas with the browser's font into those rectangles (R fill, G thin outline, B thick outline: the three text shaders read one channel each), writes `Content/Fonts/<font>.png`, and `LoadFont` loads it when present. Western only by default (0.4–0.8 s); `?glyphs=all` adds the CJK fonts (~2.5 s each) |
+| 2 | pause menu → Options: `[first-chance #29] System.ArgumentOutOfRangeException: ArgumentOutOfRange_IndexMustBeLess Arg_ParamName_Name, index` then `Uncaught RuntimeError: memory access out of bounds`; the game stopped stepping | `GraphicsAdapter.SupportedDisplayModes` is empty in a tab (no resolution lines were logged), and `SoundMenu` calls `SetIndex(0)` on the empty resolution list | no resolution list and no fullscreen toggle under `BROWSER`; every later reference to them was already null-guarded. Options then opened and closed with the game still stepping |
+| 3 | (not a wall) `DirectoryNotFound /Cloudberry Kingdom/…` on every save | `SpecialFolder.MyDocuments` is `""` on wasm and nothing creates the folder | the page creates `/Cloudberry Kingdom` in memory before `Main` |
+
+**The main loop.** A probe queues a throw that is caught inside the next game frame (`window.cloudberry.throwProbe()`).
+It came back 3 of 3 times under FNA's own Emscripten loop and under the page loop, and the game kept stepping in both. So
+wall 2 was an *uncaught* throw leaving the frame, not "every throw after the hand-off is fatal". The page loop is still the
+default, for a different measured reason. On one build, with Mono's precise interpreter GC scan turned back on
+(`?interp_opts=`), FNA's loop froze the tab at 22 s after 2 levels (the §5 freeze). The page loop made 9 levels in 75 s
+without a stall. With the page loop, `Main` returns normally, and the page calls `BrowserMainLoop.Frame()`
+(`Game.RunOneFrame`) from `requestAnimationFrame` after doing what `Game.Run` does before its loop (`BeforeLoop`, by
+reflection). `?loop=fna` restores FNA's loop. This confirms the stale-frame-chain explanation §5 inferred.
+
+**Evidence runs** (a Playwright driver over CDP on a Windows Chrome with a GPU, reading `window.cloudberry.state()` between keys):
+attract mode → Free Play level in 26 s of Enter presses, then every row of the table above. The generator API is unchanged:
+`{seed:7, difficulty:4, hero:'Normal', length:6700}` gives a document equal to the pre-keyboard build's apart from `engine.build`.

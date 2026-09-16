@@ -1,6 +1,6 @@
 --- a/Game/MainClass/MainClass.cs
 +++ b/Game/MainClass/MainClass.cs
-@@ -14,10 +14,21 @@
+@@ -14,14 +14,33 @@
          {
              Tools.Write("Main Constructor");
  
@@ -22,7 +22,19 @@
  #if DEBUG && WINDOWS && !SDL2
              AppDomain.CurrentDomain.FirstChanceException += new EventHandler<System.Runtime.ExceptionServices.FirstChanceExceptionEventArgs>(CurrentDomain_FirstChanceException);
  #endif
-@@ -39,6 +50,10 @@
+ 
++#if BROWSER && GAME
++            if (BrowserMainLoop.Requested())
++            {
++                BrowserMainLoop.Start(new XnaGameClass());
++                return;
++            }
++#endif
++
+ #if GAME
+             using (XnaGameClass game = new XnaGameClass())
+ #else
+@@ -39,6 +58,10 @@
          }
  #endif
  

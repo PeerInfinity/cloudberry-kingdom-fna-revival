@@ -61,7 +61,17 @@ compiled code, which only its rights holder can license. Serve it on `127.0.0.1`
   after FNA hands control to the Emscripten main loop never returns, and the tab freezes at the first demo level swap.
   Turning off that one option makes the scan conservative, as in .NET 8. `?interp_opts=` overrides it; an empty value
   restores the default, and the freeze with it.
-- **`?api=1`**: `window.cloudberry = {ready(), generate(args), generateText(args), timings()}`. See the generator API in
+- **Readable text.** Engine-only mode has no font art, so the page draws a placeholder glyph atlas with the browser's font on the
+  rectangles in `Content/Fonts/Grobold_Western.fnt` and writes it as `Content/Fonts/Grobold_Western.png`, which the game loads.
+  `?glyphs=all` also draws the CJK fonts (slower); `?glyphs=0` skips it.
+- **The main loop.** By default `Main` returns and the page steps frames from `requestAnimationFrame` (`BrowserMainLoop.Frame`).
+  FNA's own loop unwinds out of `Main`, and with it Mono's precise GC scan freezes; `?loop=fna` selects it anyway.
+- **Saves** go to `/Cloudberry Kingdom` in memory (the page creates it); nothing survives a reload.
+- **Keys**: the game's own bindings, listed under the canvas and in `docs/BROWSER.md` §9. The canvas scales to the window,
+  and the page does not scroll, so arrow keys and Space only reach the game.
+- `window.cloudberry.state()` (every mode): the game type, frame/physics counters, each bob's position/velocity/dying/dead,
+  and each visible menu's items and selection. `window.cloudberry.throwProbe()`: a caught throw inside a frame.
+- **`?api=1`** adds `ready(), generate(args), generateText(args), timings()` to `window.cloudberry`. See the generator API in
   `docs/BROWSER.md`.
 - Diagnostics: `?mono_log=<mask>` (Mono's own log), `?fpsbeacon=1` and `?logbeacon=1` (frame rate / console lines sent as
   GET requests that a static server's access log records, for reading a run on another machine).

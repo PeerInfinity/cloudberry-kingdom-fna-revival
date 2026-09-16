@@ -96,6 +96,7 @@ if (buildInfo.build) builder = builder.withEnvironmentVariable('CK_BUILD', build
 // never returns once the game is on FNA's emscripten main loop: the first collection at a ScreenSaver level swap
 // froze the tab. '-precise' turns only that option off (the interpreter stack is then scanned conservatively).
 // ?interp_opts=<MONO_INTERPRETER_OPTIONS> overrides it (an empty value restores the default).
+if (params.get('loop') !== 'fna') builder = builder.withEnvironmentVariable('CK_MAIN_LOOP', 'js');
 builder = builder.withEnvironmentVariable('MONO_INTERPRETER_OPTIONS', params.has('interp_opts') ? params.get('interp_opts') : '-precise');
 if (params.get('mono_log')) builder = builder.withEnvironmentVariable('MONO_LOG_LEVEL', 'debug').withEnvironmentVariable('MONO_LOG_MASK', params.get('mono_log'));
 const runtime = await builder.create();
@@ -141,25 +142,135 @@ for (const [name, argIndexes] of Object.entries(FS_PATH_ARGS)) {
     return original.apply(this, args);
   };
 }
+// Engine-only mode has no font art: the game samples every glyph out of one font texture, at the rectangles its
+// Content/Fonts/<font>.fnt lists, and without the texture every label is a solid bar. The page draws a placeholder
+// atlas with the browser's own font into those same rectangles and writes it as Content/Fonts/<font>.png, which the
+// game loads when present (Localization.LoadFont). The text shaders read one channel each: R = fill (Text_NoOutline),
+// G = thin outline (Text_ThinOutline), B = thick outline (Text_ThickOutline). Only the Western font is drawn by default
+// (all eight European languages use it; ~0.4 s): each CJK atlas costs ~2.5 s, and a language switch to one without its
+// atlas falls back to the bars, so ?glyphs=all draws them too, and ?glyphs=0 skips drawing (labels are bars again).
+const GLYPH_FONT_FAMILY = 'Arial, Helvetica, sans-serif';
+const GLYPH_FONT_WEIGHT = 'bold';
+const GLYPH_PAD = 9;                        // HackFont widens every glyph rectangle by 19 texels; the ink sits inside that margin
+const GLYPH_OUTLINE_THIN = 6, GLYPH_OUTLINE_THICK = 12;   // stroke widths (texels) of the G and B channels
+const FNT_HEADER_LINES = 2;
+const GLYPH_FONTS_DEFAULT = new Set(['Grobold_Western']);
+async function drawGlyphAtlas(fntText) {
+  const lines = fntText.split(/\r?\n/);
+  const glyphs = [];
+  let width = 1, height = 1;
+  for (const line of lines.slice(FNT_HEADER_LINES)) {
+    const f = line.split('\t');
+    if (f.length < 9) continue;
+    const [code, x, y, w, h] = f.slice(0, 5).map(Number);
+    glyphs.push({ code, x, y, w, h });
+    width = Math.max(width, x + w + 2 * GLYPH_PAD); height = Math.max(height, y + h + 2 * GLYPH_PAD);
+  }
+  // Power-of-two sides, as the original atlases (the game divides texel rectangles by the texture's size).
+  width = 2 ** Math.ceil(Math.log2(width - 1)); height = 2 ** Math.ceil(Math.log2(height - 1));
+  const layer = (strokeWidth) => {
+    const c = new OffscreenCanvas(width, height), g = c.getContext('2d');
+    g.fillStyle = '#000'; g.fillRect(0, 0, width, height);
+    g.fillStyle = g.strokeStyle = '#fff'; g.lineJoin = 'round'; g.lineWidth = strokeWidth; g.textBaseline = 'alphabetic';
+    for (const { code, x, y, w, h } of glyphs) {
+      const ch = String.fromCodePoint(code);
+      if (!ch.trim() || w < 2 || h < 2) continue;
+      g.font = `${GLYPH_FONT_WEIGHT} ${h}px ${GLYPH_FONT_FAMILY}`;
+      const m = g.measureText(ch);
+      const inkW = m.actualBoundingBoxLeft + m.actualBoundingBoxRight, inkH = m.actualBoundingBoxAscent + m.actualBoundingBoxDescent;
+      if (!(inkW > 0 && inkH > 0)) continue;
+      // Stretch the ink box onto the .fnt rectangle so the game's spacing tables still fit the letters.
+      g.save();
+      g.translate(x + GLYPH_PAD, y + GLYPH_PAD);
+      g.scale(w / inkW, h / inkH);
+      g.translate(m.actualBoundingBoxLeft, m.actualBoundingBoxAscent);
+      if (strokeWidth > 0) { g.lineWidth = strokeWidth * inkH / h; g.strokeText(ch, 0, 0); }
+      g.fillText(ch, 0, 0);
+      g.restore();
+    }
+    return g.getImageData(0, 0, width, height).data;
+  };
+  const [fill, thin, thick] = [layer(0), layer(GLYPH_OUTLINE_THIN), layer(GLYPH_OUTLINE_THICK)];
+  const out = new OffscreenCanvas(width, height), og = out.getContext('2d');
+  const img = og.createImageData(width, height);
+  for (let i = 0; i < img.data.length; i += 4) { img.data[i] = fill[i]; img.data[i + 1] = thin[i]; img.data[i + 2] = thick[i]; img.data[i + 3] = 255; }
+  og.putImageData(img, 0, 0);
+  return { png: new Uint8Array(await (await out.convertToBlob({ type: 'image/png' })).arrayBuffer()), width, height, glyphs: glyphs.length };
+}
+if (params.get('glyphs') !== '0') {
+  const t = performance.now();
+  for (const [i, rel] of manifest.entries()) {
+    const match = rel.match(/^(Content\/Fonts)\/([^/]+)\.fnt$/);
+    if (!match || (params.get('glyphs') !== 'all' && !GLYPH_FONTS_DEFAULT.has(match[2]))) continue;
+    const atlas = await drawGlyphAtlas(new TextDecoder().decode(bytes[i]));
+    Module.FS_createDataFile('/' + match[1], match[2] + '.png', atlas.png, true, true, true);
+    console.log(`[host] glyph atlas ${match[2]}.png ${atlas.width}x${atlas.height}, ${atlas.glyphs} glyphs, ${atlas.png.length} bytes`);
+  }
+  console.log(`[host] glyph atlases drawn in ${(performance.now() - t).toFixed(0)} ms`);
+}
+
+// window.cloudberry.state(): what the player is looking at (C#: CloudberryKingdom.BrowserPlayState) — the game type,
+// frame/physics counters, each bob's position/velocity/dying/dead, and each visible menu's items and selection.
+let exportsPromise = null;
+const assemblyExports = () => (exportsPromise ??= runtime.getAssemblyExports('CloudberryKingdom.dll')).then((e) => e.CloudberryKingdom);
+window.cloudberry = {
+  state: async () => JSON.parse((await assemblyExports()).BrowserPlayState.StateJson()),
+  // A throw caught inside the next game frame; resolves to the count of probes that came back (0 = the page died).
+  throwProbe: async (waitMs = THROW_PROBE_WAIT_MS) => {
+    const loop = (await assemblyExports()).BrowserMainLoop;
+    loop.QueueThrowProbe();
+    await new Promise((r) => setTimeout(r, waitMs));
+    return loop.ThrowProbeCount();
+  },
+};
+const THROW_PROBE_WAIT_MS = 500;
+
+// The game saves under Environment.SpecialFolder.MyDocuments, which is "" here: /Cloudberry Kingdom/{SaveData.bam,
+// Options, Player Data}. Without the directory every save throws DirectoryNotFound; the page creates it (in memory:
+// nothing persists across reloads).
+const SAVE_DIR = '/Cloudberry Kingdom';
+try { FS.mkdir(SAVE_DIR); } catch { /* exists */ }
+
+// The main loop. Default (?loop=js): Main returns normally and the page steps frames from requestAnimationFrame
+// (C#: CloudberryKingdom.BrowserMainLoop.Frame, which is Game.RunOneFrame). ?loop=fna: FNA's own Emscripten loop,
+// emscripten_set_main_loop(..., simulate_infinite_loop 1), which leaves Main by throwing 'unwind'. Measured on one
+// build with Mono's precise interpreter GC scan back on (?interp_opts=): FNA's loop froze the tab at the first
+// collection after a level swap (heartbeat stopped at 22 s, 2 levels); the page loop made 9 levels in 75 s without
+// a stall. So the stale frame chain left by the unwind is what the precise scan walked forever.
+const jsLoop = params.get('loop') !== 'fna';
+// A frame that throws out of the game is abandoned and the loop goes on; the first FRAME_ERROR_REPORT_LIMIT are logged.
+const FRAME_ERROR_REPORT_LIMIT = 20;
+async function startFrameLoop() {
+  const loop = (await assemblyExports()).BrowserMainLoop;
+  let frameErrors = 0;
+  const frame = () => {
+    try { loop.Frame(); } catch (e) {
+      if (frameErrors++ < FRAME_ERROR_REPORT_LIMIT) console.error(`[host] frame threw (#${frameErrors}): ${e && e.message || e}`);
+    }
+    requestAnimationFrame(frame);
+  };
+  requestAnimationFrame(frame);
+}
 console.log(`[host] wrote ${manifest.length} content files (${bytes.reduce((n, b) => n + b.length, 0)} bytes) into the FS; calling Main`);
 if (apiMode) {
-  let exportsPromise = null;
-  const api = () => (exportsPromise ??= runtime.getAssemblyExports('CloudberryKingdom.dll')).then((e) => e.CloudberryKingdom.GeneratorApi);
+  const api = () => assemblyExports().then((e) => e.GeneratorApi);
   const ready = () => api().then((g) => new Promise((resolve) => {
     const poll = () => (g.IsReady() ? resolve(true) : setTimeout(poll, API_READY_POLL_MS));
     poll();
   }));
   // generateText returns the document exactly as C# wrote it (for byte comparison); generate parses it.
   const generateText = async (args = {}) => { const g = await api(); await ready(); return g.GenerateJson(JSON.stringify(args)); };
-  window.cloudberry = {
+  Object.assign(window.cloudberry, {
     ready,
     generateText,
     generate: async (args = {}) => JSON.parse(await generateText(args)),
     timings: async () => JSON.parse((await api()).LastTimings()),
-  };
+  });
   console.log('[host] api mode: window.cloudberry.generate({seed, difficulty, hero, length, geometry, tileset}) once ready');
-  runMain().then(() => console.log('[host] Main returned'), (e) => console.log('[host] Main: ' + (e && e.message || e)));
+  // With FNA's loop Main never returns here; with the page loop it returns and the frames start.
+  runMain().then(() => { console.log('[host] Main returned'); if (jsLoop) return startFrameLoop(); }, (e) => console.log('[host] Main: ' + (e && e.message || e)));
 } else {
   await runMain();
   console.log('[host] Main returned');
+  if (jsLoop) await startFrameLoop();
 }

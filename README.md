@@ -3,12 +3,13 @@
 ## This fork
 
 This is PeerInfinity's fork of [fera89/cloudberry-kingdom-fna-revival](https://github.com/fera89/cloudberry-kingdom-fna-revival).
-It keeps the upstream "bring your own source" model and adds three things on top of the upstream patch set:
+It keeps the upstream "bring your own source" model and adds four things on top of the upstream patch set:
 
 | Adds | What it is |
 |---|---|
 | **Engine-only mode** | Pwnee's own placeholder mode (`CloudberryKingdomGame.LoadResources = false`): levels are drawn as collision boxes, with a patch that makes music and sound silent. The game needs no art, sound, music or video, only about 1 MB of data files and compiled shaders from your clone. |
 | **Browser target** | The engine-only game on FNA + .NET 9 browser-wasm (Mono AOT, single-threaded, WebGL 2), as a static page you build and serve locally. The page carries two host shims: WebGL has no BGRA texture upload, and Mono 9's precise interpreter GC scan must be off. See [`docs/BROWSER.md`](docs/BROWSER.md). |
+| **Keyboard control** | The page plays with the game's own PC bindings. Menus: arrows (or W/S) choose, Enter or Space confirm, Esc back. In a level: ←/→ or A/D run, ↑ or W jump, Esc pause, Enter the power-up menu, Space restart from the door. Menu and HUD text is readable: the page draws a placeholder glyph atlas with the browser's own font onto the game's glyph rectangles. |
 | **Generator API** | Seed + difficulty + hero in, a JSON level (`ck-level/1`: blocks, obstacles, the goal) plus the computer player's recorded input and trace out. It works in the tab (`window.cloudberry.generate({...})`) and natively (`--generate`), with the same bytes on both. |
 
 The fork's patches live in [`patches/browser/`](patches/browser/) and are applied after upstream's by
