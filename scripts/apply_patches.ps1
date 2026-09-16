@@ -32,7 +32,8 @@ Push-Location $GameRepo
 try {
   if (-not $BrowserOnly) {
     foreach ($kv in $map.GetEnumerator()) {
-        $target = $kv.Value
+        # Absolute: .NET resolves a relative path against the process directory, not Push-Location's.
+        $target = Join-Path (Get-Location).ProviderPath $kv.Value
         # The patches are LF; a Windows clone may be CRLF. Normalize the target to LF
         # (keeping any BOM) so the diffs apply cleanly. Line endings don't affect the build.
         $bytes = [System.IO.File]::ReadAllText($target)
@@ -57,7 +58,7 @@ try {
     $series = Get-Content (Join-Path $Patches "browser\series") | ForEach-Object { ,($_ -split "`t") }
     foreach ($row in $series) {
         if ($row[0] -ne "patch") { continue }
-        $target = Join-Path (Get-Location) $row[2]
+        $target = Join-Path (Get-Location).ProviderPath $row[2]
         # Byte-level CRLF -> LF, so a UTF-8 BOM stays where the diff expects it.
         $text = [System.Text.Encoding]::GetEncoding(28591).GetString([System.IO.File]::ReadAllBytes($target))
         [System.IO.File]::WriteAllBytes($target, [System.Text.Encoding]::GetEncoding(28591).GetBytes(($text -replace "`r`n","`n")))
@@ -67,7 +68,7 @@ try {
     }
     foreach ($row in $series) {
         if ($row[0] -ne "file") { continue }
-        $target = Join-Path (Get-Location) $row[2]
+        $target = Join-Path (Get-Location).ProviderPath $row[2]
         New-Item -ItemType Directory -Force -Path (Split-Path -Parent $target) | Out-Null
         Copy-Item (Join-Path $Patches ("browser\" + $row[1])) $target -Force
         Write-Host "  copied browser\$($row[1]) -> $($row[2])" -ForegroundColor Green
