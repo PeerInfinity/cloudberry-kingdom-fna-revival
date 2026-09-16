@@ -34,9 +34,16 @@ them) without permission from the rights holder.
 | **SDL2 / SDL3** | Sam Lantinga et al. | zlib |
 | **MonoGame Content Builder (mgcb)** | MonoGame Team | Ms-PL / MIT |
 | **Mono** | .NET Foundation | MIT |
+| **.NET runtime + `wasm-tools` workload** (Mono on WebAssembly, the browser target) | .NET Foundation / Microsoft | MIT |
+| **FNA-WASM-Build** (`SDL3.a`, `FNA3D.a`, `libmojoshader.a`, `FAudio.a` for the browser target) | r58Playz — <https://github.com/r58Playz/FNA-WASM-Build> | no licence stated; builds of the zlib components above. Downloaded by `build/browser/build.sh`, not vendored |
+| **Emscripten** (bundled with the `wasm-tools` workload) | Emscripten contributors | MIT / LLVM |
 | **PortMaster + tooling** (`MMLoader`, `hacksdl`, gptokeyb) | PortMaster team & contributors | see PortMaster |
 | **Dust: An Elysian Tail port** (runtime pattern) | JanTrueno / PortMaster | — |
 | **ffmpeg / libtheora / libvorbis / libogg** | FFmpeg & Xiph.Org | LGPL / BSD |
+
+The browser target (this fork) is built the same way: `build/browser/build.sh` compiles your own clone
+into a local page. The built page embeds the game's compiled code, so it is covered by the paragraph
+on Cloudberry Kingdom above, and this repository never contains one.
 
 When you assemble the R36S port you supply the FNA/Mono runtime binaries from a PortMaster port;
 those remain under their own licenses and are **not** included in this repository.

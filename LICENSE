@@ -1,6 +1,7 @@
 MIT License
 
 Copyright (c) 2026 Christian Bittencort
+Additions in this fork by PeerInfinity are released under the same MIT License.
 
 This license applies ONLY to the original contents of this repository — the build
 scripts, the unified-diff patches, the .csproj project files, and the documentation.
