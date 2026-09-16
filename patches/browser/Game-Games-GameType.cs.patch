@@ -1,0 +1,12 @@
+--- a/Game/Games/GameType.cs
++++ b/Game/Games/GameType.cs
+@@ -85,6 +85,9 @@
+ 
+         protected void KillThread(object sender, System.EventArgs e)
+         {
++#if BROWSER
++            return;
++#endif
+             Thread MakeThread = Thread.CurrentThread;
+             if (MakeThread != null)
+             {

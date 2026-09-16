@@ -1,0 +1,36 @@
+--- a/Game/MainClass/DebugHelper_MakeTestLevel.cs
++++ b/Game/MainClass/DebugHelper_MakeTestLevel.cs
+@@ -1,5 +1,4 @@
+-﻿#if DEBUG
+-
++﻿
+ using Microsoft.Xna.Framework;
+ using CloudberryKingdom.Levels;
+ 
+@@ -7,7 +6,8 @@
+ {
+     partial class CloudberryKingdomGame
+     {
+-        void MakeEmptyLevel()
++        // Not DEBUG-only: the generator API (GeneratorApi.OnLoaded) idles on this empty level.
++        internal void MakeEmptyLevel()
+         {
+             Level level = new Level();
+             level.MainCamera = new Camera();
+@@ -25,6 +25,7 @@
+             Tools.CurGameData.MyLevel = Tools.CurLevel = level;
+         }
+ 
++#if DEBUG
+         void MakeTestLevel()
+         {
+             PlayerManager.Players[0].Exists = true;
+@@ -258,6 +259,6 @@
+ 			//p.Style.BlockFillType = StyleData._BlockFillType.Sideways;
+ 			//level.CurMakeData.BlocksAsIs = true;
+         }
++#endif
+     }
+ }
+-#endif
+\ No newline at end of file

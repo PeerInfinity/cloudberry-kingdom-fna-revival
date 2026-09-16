@@ -1,0 +1,14 @@
+--- a/Game/MainClass/InitialLoading.cs
++++ b/Game/MainClass/InitialLoading.cs
+@@ -48,6 +48,11 @@
+ #endif
+                         return;
+                     }
++                    else if (GeneratorApi.ApiMode)
++                    {
++                        GeneratorApi.OnLoaded();
++                        return;
++                    }
+                     else if (StartAsFreeplay)
+                     {
+                         Tools.CurGameData = CloudberryKingdomGame.TitleGameFactory();

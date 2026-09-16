@@ -21,3 +21,14 @@ build/_r36s_mgcb_obj/
 .DS_Store
 Thumbs.db
 .vs/
+
+# --- Browser target: built sites and native archives are never committed (the .wasm and the
+#     assemblies in _framework/ embed the game's compiled code) ---
+site/
+sites/
+_framework/
+bin-*/
+obj-*/
+*.a
+*.wasm
+build/browser/natives/

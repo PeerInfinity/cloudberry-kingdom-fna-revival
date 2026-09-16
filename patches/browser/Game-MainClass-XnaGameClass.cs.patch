@@ -1,0 +1,12 @@
+--- a/Game/MainClass/XnaGameClass.cs
++++ b/Game/MainClass/XnaGameClass.cs
+@@ -78,6 +78,9 @@
+         {
+ 			try
+ 			{
++#if BROWSER
++				Tools.RunBrowserBackgroundQueue();
++#endif
+ 				this.IsFixedTimeStep = Tools.FixedTimeStep;
+ 
+ 				MyGame.RunningSlowly = gameTime.IsRunningSlowly;

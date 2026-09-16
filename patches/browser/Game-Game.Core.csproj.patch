@@ -1,0 +1,10 @@
+--- a/Game/Game.Core.csproj
++++ b/Game/Game.Core.csproj
+@@ -26,6 +26,7 @@
+ 
+   <ItemGroup>
+     <Compile Include="Effects\FireballDraw.cs" />
++    <Compile Include="MainClass\GeneratorApi.cs" />
+     <Compile Include="Engine\Chunk.cs" />
+     <Compile Include="Engine\Effects\EzEffectWad.cs" />
+     <Compile Include="Engine\Input\CoreInput.cs" />
